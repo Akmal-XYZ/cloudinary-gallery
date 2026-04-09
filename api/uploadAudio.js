@@ -15,7 +15,6 @@ export default async function handler(req, res) {
     }
 
     const formData = await req.formData();
-
     const file = formData.get("file");
     const user = formData.get("user");
 
@@ -27,7 +26,6 @@ export default async function handler(req, res) {
 
     const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 
-    // ❗ TANPA .mp3 (biar cocok frontend)
     const public_id = `audio_BY_${user}`;
 
     const body = new URLSearchParams();
@@ -39,7 +37,7 @@ export default async function handler(req, res) {
     body.append("overwrite", "true");
 
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/upload`, // 🔥 FIX DISINI
       {
         method: "POST",
         headers: {
@@ -51,6 +49,10 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
+
+    if (data.error) {
+      return res.status(500).json(data);
+    }
 
     res.status(200).json(data);
 

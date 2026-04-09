@@ -5,17 +5,9 @@
 <title>Project Panel</title>
 
 <style>
-body {
-  margin:0;
-  background:#0f0f0f;
-  font-family:sans-serif;
-  color:#fff;
-}
+body { margin:0; background:#0f0f0f; font-family:sans-serif; color:#fff; }
 
-/* PROJECT LIST */
-.container {
-  padding:15px;
-}
+.container { padding:15px; }
 
 .project {
   background:#1a1a1a;
@@ -23,15 +15,22 @@ body {
   border-radius:14px;
   margin-bottom:10px;
   cursor:pointer;
-  transition:0.2s;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
 
-.project:hover {
+.project:hover { background:#222; }
+
+.status span {
+  margin-left:6px;
+  font-size:12px;
+  padding:4px 6px;
+  border-radius:6px;
   background:#222;
-  transform:scale(1.02);
 }
 
-/* OVERLAY */
+/* overlay */
 .overlay {
   position:fixed;
   top:0; left:0;
@@ -41,66 +40,49 @@ body {
   flex-direction:column;
 }
 
-.overlay.active {
-  display:flex;
-}
+.overlay.active { display:flex; }
 
 .overlay-header {
   padding:15px;
   background:#111;
   display:flex;
   justify-content:space-between;
-  align-items:center;
-  border-bottom:1px solid #222;
 }
 
 .close-btn {
-  background:#ff3b3b;
+  background:red;
   border:none;
   color:#fff;
-  padding:6px 12px;
-  border-radius:6px;
-  cursor:pointer;
+  padding:6px 10px;
 }
 
-/* NOTE */
-.note-box {
-  padding:12px;
-  border-bottom:1px solid #222;
-}
+/* note */
+.note-box { padding:10px; border-bottom:1px solid #222; }
 
 textarea {
   width:100%;
-  height:100px;
+  height:80px;
   border:none;
-  border-radius:10px;
-  padding:10px;
-  font-size:15px;
+  border-radius:8px;
+  padding:8px;
   background:#1a1a1a;
   color:#fff;
 }
 
-.save-btn {
-  width:100%;
-  margin-top:8px;
-  padding:10px;
+button {
+  margin-top:5px;
+  padding:8px;
   border:none;
-  border-radius:10px;
-  background:#00c46a;
-  color:#fff;
-  font-weight:bold;
+  border-radius:8px;
   cursor:pointer;
 }
 
-.saved-text {
-  background:#1a1a1a;
-  padding:10px;
-  border-radius:10px;
-  white-space:pre-wrap;
-  line-height:1.4;
-}
+/* audio */
+.audio-box { padding:10px; border-bottom:1px solid #222; }
 
-/* GALLERY */
+audio { width:100%; margin-top:5px; }
+
+/* gallery */
 .gallery {
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
@@ -128,13 +110,18 @@ img {
     <button class="close-btn" onclick="closeOverlay()">Close</button>
   </div>
 
-  <!-- NOTE AREA -->
-  <div class="note-box" id="noteBox">
+  <!-- NOTE -->
+  <div class="note-box">
     <textarea id="noteInput" placeholder="Tulis note..."></textarea>
-    <button class="save-btn" id="saveBtn" onclick="saveNote()">Save Note</button>
+    <button onclick="saveNote()">Save Note</button>
+    <div id="savedNote" style="display:none;"></div>
+  </div>
 
-    <!-- hasil saved -->
-    <div id="savedText" class="saved-text" style="display:none;"></div>
+  <!-- AUDIO -->
+  <div class="audio-box">
+    <input type="file" id="audioInput" accept="audio/*">
+    <audio id="audioPreview" controls style="display:none;"></audio>
+    <button onclick="saveAudio()">Save Audio</button>
   </div>
 
   <div class="gallery" id="gallery"></div>
@@ -142,24 +129,27 @@ img {
 
 <script>
 let currentUser = "";
-let noteSaved = false;
+let allResources = [];
 
+// extract user
 function extractUsername(name) {
   const match = name.match(/BY_(@[A-Za-z0-9_]+)/i);
   return match ? match[1].toLowerCase() : "unknown";
 }
 
-// LOAD PROJECT
+// LOAD DATA
 fetch("/api/cloudinary")
 .then(res => res.json())
 .then(data => {
+  allResources = data.resources;
+
   const grouped = {};
 
   data.resources.forEach(file => {
-    if (!file.public_id.includes("note_BY_")) {
+    if (file.resource_type === "image") {
       const user = extractUsername(file.public_id || "");
       if (!grouped[user]) grouped[user] = [];
-      grouped[user].push(file.secure_url);
+      grouped[user].push(file);
     }
   });
 
@@ -167,102 +157,117 @@ fetch("/api/cloudinary")
   container.innerHTML = "";
 
   Object.keys(grouped).forEach(user => {
+
+    const hasNote = allResources.find(f => f.public_id === `note_BY_${user}.txt`);
+    const hasAudio = allResources.find(f => f.public_id === `audio_BY_${user}.mp3`);
+    const hasFoto = grouped[user].length > 0;
+
     const div = document.createElement("div");
     div.className = "project";
-    div.innerText = "Project By " + user;
+
+    div.innerHTML = `
+      <span>Project By ${user}</span>
+      <div class="status">
+        <span>NOTE ${hasNote ? "✅" : "❌"}</span>
+        <span>AUDIO ${hasAudio ? "✅" : "❌"}</span>
+        <span>FOTO ${hasFoto ? "✅" : "❌"}</span>
+      </div>
+    `;
+
     div.onclick = () => openProject(user, grouped[user]);
+
     container.appendChild(div);
   });
-})
-.catch(() => {
-  document.getElementById("projects").innerText = "API ERROR";
 });
 
 // OPEN PROJECT
-function openProject(user, images) {
+function openProject(user, files) {
   currentUser = user;
-  noteSaved = false;
 
-  const gallery = document.getElementById("gallery");
-  const title = document.getElementById("overlayTitle");
+  document.getElementById("overlayTitle").innerText = "Project " + user;
 
-  gallery.innerHTML = "";
-  title.innerText = "Project By " + user;
-
-  // reset UI
+  // reset
+  document.getElementById("gallery").innerHTML = "";
   document.getElementById("noteInput").style.display = "block";
-  document.getElementById("saveBtn").style.display = "block";
-  document.getElementById("savedText").style.display = "none";
+  document.getElementById("savedNote").style.display = "none";
 
-  document.getElementById("noteInput").value = "";
-
-  images.forEach(src => {
+  // images
+  files.forEach(f => {
     const img = document.createElement("img");
-    img.src = src;
-    gallery.appendChild(img);
+    img.src = f.secure_url;
+    document.getElementById("gallery").appendChild(img);
   });
 
-  loadNote(user);
+  loadNote();
+  loadAudio();
 
   document.getElementById("overlay").classList.add("active");
 }
 
 // LOAD NOTE
-async function loadNote(user) {
-  try {
-    const res = await fetch("/api/cloudinary");
-    const data = await res.json();
+async function loadNote() {
+  const file = allResources.find(f => f.public_id === `note_BY_${currentUser}.txt`);
 
-    const file = data.resources.find(f =>
-      f.public_id === `note_BY_${user}.txt`
-    );
+  if (file) {
+    const text = await fetch(file.secure_url).then(r => r.text());
 
-    if (file) {
-      const text = await fetch(file.secure_url).then(r => r.text());
-
-      document.getElementById("noteInput").style.display = "none";
-      document.getElementById("saveBtn").style.display = "none";
-
-      const saved = document.getElementById("savedText");
-      saved.style.display = "block";
-      saved.innerText = text;
-
-      noteSaved = true;
-    }
-  } catch (err) {
-    console.log(err);
+    document.getElementById("noteInput").style.display = "none";
+    const saved = document.getElementById("savedNote");
+    saved.style.display = "block";
+    saved.innerText = text;
   }
 }
 
 // SAVE NOTE
 async function saveNote() {
-  if (noteSaved) return;
-
-  const text = document.getElementById("noteInput").value.trim();
-  if (!text) return alert("Note kosong");
-
-  document.getElementById("saveBtn").innerText = "Saving...";
+  const text = document.getElementById("noteInput").value;
 
   await fetch("/api/uploadNote", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      user: currentUser,
-      text,
-    }),
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ user: currentUser, text })
   });
 
-  // tampilkan hasil langsung
-  document.getElementById("noteInput").style.display = "none";
-  document.getElementById("saveBtn").style.display = "none";
+  location.reload();
+}
 
-  const saved = document.getElementById("savedText");
-  saved.style.display = "block";
-  saved.innerText = text;
+// AUDIO PREVIEW
+document.getElementById("audioInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-  noteSaved = true;
+  const url = URL.createObjectURL(file);
+  const audio = document.getElementById("audioPreview");
+  audio.src = url;
+  audio.style.display = "block";
+});
+
+// SAVE AUDIO
+async function saveAudio() {
+  const file = document.getElementById("audioInput").files[0];
+  if (!file) return alert("Pilih audio dulu");
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("user", currentUser);
+
+  await fetch("/api/uploadAudio", {
+    method:"POST",
+    body: form
+  });
+
+  location.reload();
+}
+
+// LOAD AUDIO
+function loadAudio() {
+  const file = allResources.find(f => f.public_id === `audio_BY_${currentUser}.mp3`);
+
+  if (file) {
+    const audio = document.getElementById("audioPreview");
+    audio.src = file.secure_url;
+    audio.style.display = "block";
+  }
 }
 
 // CLOSE

@@ -6,31 +6,35 @@ export default async function handler(req, res) {
 
     const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 
-    // 🔥 AMBIL SEMUA (image + raw)
-    const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources?resource_type=all&max_results=100`;
+    // 🔥 ambil image
+    const imgRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/resources/image`,
+      {
+        headers: { Authorization: `Basic ${auth}` },
+      }
+    );
+    const imgData = await imgRes.json();
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Basic ${auth}`,
-      },
-    });
+    // 🔥 ambil raw (txt)
+    const rawRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/resources/raw`,
+      {
+        headers: { Authorization: `Basic ${auth}` },
+      }
+    );
+    const rawData = await rawRes.json();
 
-    const data = await response.json();
+    // 🔥 gabungin
+    const resources = [
+      ...(imgData.resources || []),
+      ...(rawData.resources || []),
+    ];
 
-    // 🔥 HANDLE ERROR BIAR GAK CRASH
-    if (!data.resources) {
-      return res.status(500).json({
-        error: "Cloudinary error",
-        detail: data,
-      });
-    }
-
-    res.status(200).json(data);
+    res.status(200).json({ resources });
 
   } catch (err) {
     res.status(500).json({
-      error: "Server error",
-      message: err.message,
+      error: err.message,
     });
   }
 }

@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
     const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 
-    const public_id = `note_BY_${user}`;
+    const public_id = `note_BY_${user}.txt`;
 
     const body = new URLSearchParams();
     body.append("file", `data:text/plain;base64,${Buffer.from(text).toString("base64")}`);

@@ -158,8 +158,8 @@ fetch("/api/cloudinary")
 
   Object.keys(grouped).forEach(user => {
 
-    const hasNote = allResources.find(f => f.public_id === `note_BY_${user}.txt`);
-    const hasAudio = allResources.find(f => f.public_id === `audio_BY_${user}.mp3`);
+    const hasNote = allResources.find(f => f.public_id === `note_BY_${user}`);
+    const hasAudio = allResources.find(f => f.public_id === `audio_BY_${user}`);
     const hasFoto = grouped[user].length > 0;
 
     const div = document.createElement("div");
@@ -186,12 +186,10 @@ function openProject(user, files) {
 
   document.getElementById("overlayTitle").innerText = "Project " + user;
 
-  // reset
   document.getElementById("gallery").innerHTML = "";
   document.getElementById("noteInput").style.display = "block";
   document.getElementById("savedNote").style.display = "none";
 
-  // images
   files.forEach(f => {
     const img = document.createElement("img");
     img.src = f.secure_url;
@@ -206,12 +204,13 @@ function openProject(user, files) {
 
 // LOAD NOTE
 async function loadNote() {
-  const file = allResources.find(f => f.public_id === `note_BY_${currentUser}.txt`);
+  const file = allResources.find(f => f.public_id === `note_BY_${currentUser}`);
 
   if (file) {
     const text = await fetch(file.secure_url).then(r => r.text());
 
     document.getElementById("noteInput").style.display = "none";
+
     const saved = document.getElementById("savedNote");
     saved.style.display = "block";
     saved.innerText = text;
@@ -228,6 +227,7 @@ async function saveNote() {
     body: JSON.stringify({ user: currentUser, text })
   });
 
+  alert("Note saved ✅");
   location.reload();
 }
 
@@ -256,12 +256,13 @@ async function saveAudio() {
     body: form
   });
 
+  alert("Audio saved ✅");
   location.reload();
 }
 
 // LOAD AUDIO
 function loadAudio() {
-  const file = allResources.find(f => f.public_id === `audio_BY_${currentUser}.mp3`);
+  const file = allResources.find(f => f.public_id === `audio_BY_${currentUser}`);
 
   if (file) {
     const audio = document.getElementById("audioPreview");

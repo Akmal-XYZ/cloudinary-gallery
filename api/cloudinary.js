@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const cloudName = "dzbpzdqao";
   const apiKey = "978144777229154";
-  const apiSecret = "ISI_API_SECRET_LO"; // ganti ini
+  const apiSecret = "kb5h-WryZaiBzR7g3qulAF45iTo"; // ganti ini
 
   const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 

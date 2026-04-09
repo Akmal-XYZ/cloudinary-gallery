@@ -7,11 +7,12 @@
 <style>
 body {
   margin:0;
-  background:#111;
+  background:#0f0f0f;
   font-family:sans-serif;
   color:#fff;
 }
 
+/* PROJECT LIST */
 .container {
   padding:15px;
 }
@@ -19,7 +20,7 @@ body {
 .project {
   background:#1a1a1a;
   padding:15px;
-  border-radius:12px;
+  border-radius:14px;
   margin-bottom:10px;
   cursor:pointer;
   transition:0.2s;
@@ -30,39 +31,76 @@ body {
   transform:scale(1.02);
 }
 
+/* OVERLAY */
 .overlay {
   position:fixed;
   top:0; left:0;
   width:100%; height:100%;
-  background:rgba(0,0,0,0.95);
+  background:#000;
   display:none;
   flex-direction:column;
-  opacity:0;
-  transition:0.3s;
 }
 
 .overlay.active {
   display:flex;
-  opacity:1;
 }
 
 .overlay-header {
   padding:15px;
-  background:#000;
+  background:#111;
   display:flex;
   justify-content:space-between;
   align-items:center;
+  border-bottom:1px solid #222;
 }
 
 .close-btn {
-  background:red;
+  background:#ff3b3b;
   border:none;
   color:#fff;
-  padding:8px 12px;
-  border-radius:5px;
+  padding:6px 12px;
+  border-radius:6px;
   cursor:pointer;
 }
 
+/* NOTE */
+.note-box {
+  padding:12px;
+  border-bottom:1px solid #222;
+}
+
+textarea {
+  width:100%;
+  height:100px;
+  border:none;
+  border-radius:10px;
+  padding:10px;
+  font-size:15px;
+  background:#1a1a1a;
+  color:#fff;
+}
+
+.save-btn {
+  width:100%;
+  margin-top:8px;
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  background:#00c46a;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.saved-text {
+  background:#1a1a1a;
+  padding:10px;
+  border-radius:10px;
+  white-space:pre-wrap;
+  line-height:1.4;
+}
+
+/* GALLERY */
 .gallery {
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
@@ -77,32 +115,6 @@ img {
   object-fit:cover;
   border-radius:10px;
 }
-
-/* NOTE UI */
-.note-box {
-  padding:10px;
-}
-
-textarea {
-  width:100%;
-  height:100px;
-  border-radius:8px;
-  border:none;
-  padding:10px;
-  font-size:16px;
-}
-
-button.save {
-  width:100%;
-  margin-top:5px;
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  background:#00aa55;
-  color:#fff;
-  font-size:16px;
-  cursor:pointer;
-}
 </style>
 </head>
 
@@ -116,10 +128,13 @@ button.save {
     <button class="close-btn" onclick="closeOverlay()">Close</button>
   </div>
 
-  <!-- NOTE -->
-  <div class="note-box">
+  <!-- NOTE AREA -->
+  <div class="note-box" id="noteBox">
     <textarea id="noteInput" placeholder="Tulis note..."></textarea>
-    <button class="save" id="saveBtn" onclick="saveNote()">Save Note</button>
+    <button class="save-btn" id="saveBtn" onclick="saveNote()">Save Note</button>
+
+    <!-- hasil saved -->
+    <div id="savedText" class="saved-text" style="display:none;"></div>
   </div>
 
   <div class="gallery" id="gallery"></div>
@@ -151,20 +166,16 @@ fetch("/api/cloudinary")
   const container = document.getElementById("projects");
   container.innerHTML = "";
 
-  if (Object.keys(grouped).length === 0) {
-    container.innerHTML = "No project found";
-    return;
-  }
-
   Object.keys(grouped).forEach(user => {
     const div = document.createElement("div");
     div.className = "project";
     div.innerText = "Project By " + user;
-
     div.onclick = () => openProject(user, grouped[user]);
-
     container.appendChild(div);
   });
+})
+.catch(() => {
+  document.getElementById("projects").innerText = "API ERROR";
 });
 
 // OPEN PROJECT
@@ -172,18 +183,18 @@ function openProject(user, images) {
   currentUser = user;
   noteSaved = false;
 
-  const overlay = document.getElementById("overlay");
   const gallery = document.getElementById("gallery");
   const title = document.getElementById("overlayTitle");
-  const input = document.getElementById("noteInput");
-  const saveBtn = document.getElementById("saveBtn");
 
   gallery.innerHTML = "";
   title.innerText = "Project By " + user;
 
-  input.value = "";
-  input.disabled = false;
-  saveBtn.disabled = false;
+  // reset UI
+  document.getElementById("noteInput").style.display = "block";
+  document.getElementById("saveBtn").style.display = "block";
+  document.getElementById("savedText").style.display = "none";
+
+  document.getElementById("noteInput").value = "";
 
   images.forEach(src => {
     const img = document.createElement("img");
@@ -193,30 +204,33 @@ function openProject(user, images) {
 
   loadNote(user);
 
-  overlay.classList.add("active");
+  document.getElementById("overlay").classList.add("active");
 }
 
-// LOAD NOTE FROM CLOUDINARY
+// LOAD NOTE
 async function loadNote(user) {
   try {
     const res = await fetch("/api/cloudinary");
     const data = await res.json();
 
     const file = data.resources.find(f =>
-      f.public_id === `note_BY_${user}`
+      f.public_id === `note_BY_${user}.txt`
     );
 
     if (file) {
-      const txt = await fetch(file.secure_url).then(r => r.text());
+      const text = await fetch(file.secure_url).then(r => r.text());
 
-      document.getElementById("noteInput").value = txt;
-      document.getElementById("noteInput").disabled = true;
-      document.getElementById("saveBtn").disabled = true;
+      document.getElementById("noteInput").style.display = "none";
+      document.getElementById("saveBtn").style.display = "none";
+
+      const saved = document.getElementById("savedText");
+      saved.style.display = "block";
+      saved.innerText = text;
 
       noteSaved = true;
     }
   } catch (err) {
-    console.log("load note error", err);
+    console.log(err);
   }
 }
 
@@ -226,6 +240,8 @@ async function saveNote() {
 
   const text = document.getElementById("noteInput").value.trim();
   if (!text) return alert("Note kosong");
+
+  document.getElementById("saveBtn").innerText = "Saving...";
 
   await fetch("/api/uploadNote", {
     method: "POST",
@@ -238,8 +254,13 @@ async function saveNote() {
     }),
   });
 
-  document.getElementById("noteInput").disabled = true;
-  document.getElementById("saveBtn").disabled = true;
+  // tampilkan hasil langsung
+  document.getElementById("noteInput").style.display = "none";
+  document.getElementById("saveBtn").style.display = "none";
+
+  const saved = document.getElementById("savedText");
+  saved.style.display = "block";
+  saved.innerText = text;
 
   noteSaved = true;
 }

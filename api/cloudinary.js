@@ -1,25 +1,25 @@
 export default async function handler(req, res) {
-  const cloudName = process.env.dzbpzdqao;
-  const apiKey = process.env.978144777229154;
-  const apiSecret = process.env.kb5h-WryZaiBzR7g3qulAF45iTo;
+  try {
+    const cloudName = process.env.CLOUD_NAME;
+    const apiKey = process.env.API_KEY;
+    const apiSecret = process.env.API_SECRET;
 
-  const { max_results, cursor } = req.query;
+    const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 
-  const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image`;
 
-  let url = `https://api.cloudinary.com/v1_1/${cloudName}/resources?resource_type=all&max_results=${max_results || 50}`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Basic ${auth}`,
+      },
+    });
 
-  if (cursor) {
-    url += `&next_cursor=${cursor}`;
+    const data = await response.json();
+
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
   }
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Basic ${auth}`,
-    },
-  });
-
-  const data = await response.json();
-
-  res.status(200).json(data);
-}
+} 

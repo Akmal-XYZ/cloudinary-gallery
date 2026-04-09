@@ -11,15 +11,13 @@ export default async function handler(req, res) {
     const { user, text } = req.body;
 
     if (!user || !text) {
-      return res.status(400).json({
-        error: "Missing user or text",
-      });
+      return res.status(400).json({ error: "Missing data" });
     }
 
     const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 
-    // 🔥 NAMA FILE FINAL (ADA .txt)
-    const public_id = `note_BY_${user}.txt`;
+    // ❗ TANPA .txt (biar cocok frontend)
+    const public_id = `note_BY_${user}`;
 
     const body = new URLSearchParams();
     body.append(
@@ -43,15 +41,11 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    if (data.error) {
-      return res.status(500).json(data);
-    }
-
     res.status(200).json(data);
 
   } catch (err) {
     res.status(500).json({
-      error: "Upload error",
+      error: "upload note error",
       message: err.message,
     });
   }

@@ -6,7 +6,6 @@
 
 <style>
 body { margin:0; background:#0f0f0f; font-family:sans-serif; color:#fff; }
-
 .container { padding:15px; }
 
 .project {
@@ -17,10 +16,7 @@ body { margin:0; background:#0f0f0f; font-family:sans-serif; color:#fff; }
   cursor:pointer;
   display:flex;
   justify-content:space-between;
-  align-items:center;
 }
-
-.project:hover { background:#222; }
 
 .status span {
   margin-left:6px;
@@ -30,7 +26,6 @@ body { margin:0; background:#0f0f0f; font-family:sans-serif; color:#fff; }
   background:#222;
 }
 
-/* overlay */
 .overlay {
   position:fixed;
   top:0; left:0;
@@ -39,7 +34,6 @@ body { margin:0; background:#0f0f0f; font-family:sans-serif; color:#fff; }
   display:none;
   flex-direction:column;
 }
-
 .overlay.active { display:flex; }
 
 .overlay-header {
@@ -49,40 +43,6 @@ body { margin:0; background:#0f0f0f; font-family:sans-serif; color:#fff; }
   justify-content:space-between;
 }
 
-.close-btn {
-  background:red;
-  border:none;
-  color:#fff;
-  padding:6px 10px;
-}
-
-/* note */
-.note-box { padding:10px; border-bottom:1px solid #222; }
-
-textarea {
-  width:100%;
-  height:80px;
-  border:none;
-  border-radius:8px;
-  padding:8px;
-  background:#1a1a1a;
-  color:#fff;
-}
-
-button {
-  margin-top:5px;
-  padding:8px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-/* audio */
-.audio-box { padding:10px; border-bottom:1px solid #222; }
-
-audio { width:100%; margin-top:5px; }
-
-/* gallery */
 .gallery {
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
@@ -97,6 +57,25 @@ img {
   object-fit:cover;
   border-radius:10px;
 }
+
+textarea {
+  width:100%;
+  height:80px;
+  border:none;
+  border-radius:8px;
+  padding:8px;
+  background:#1a1a1a;
+  color:#fff;
+}
+
+audio { width:100%; margin-top:10px; }
+
+button {
+  margin-top:5px;
+  padding:8px;
+  border:none;
+  border-radius:8px;
+}
 </style>
 </head>
 
@@ -107,47 +86,51 @@ img {
 <div class="overlay" id="overlay">
   <div class="overlay-header">
     <span id="overlayTitle"></span>
-    <button class="close-btn" onclick="closeOverlay()">Close</button>
+    <button onclick="closeOverlay()">Close</button>
   </div>
 
   <!-- NOTE -->
-  <div class="note-box">
-    <textarea id="noteInput" placeholder="Tulis note..."></textarea>
+  <div style="padding:10px">
+    <textarea id="noteInput"></textarea>
     <button onclick="saveNote()">Save Note</button>
     <div id="savedNote" style="display:none;"></div>
   </div>
 
   <!-- AUDIO -->
-  <div class="audio-box">
-    <input type="file" id="audioInput" accept="audio/*">
-    <audio id="audioPreview" controls style="display:none;"></audio>
-    <button onclick="saveAudio()">Save Audio</button>
+  <div style="padding:10px">
+    <input type="file" id="audioInput" accept="audio/mp3">
+    <audio id="audioPlayer" controls style="display:none;"></audio>
+    <button onclick="uploadAudio()">Upload Audio</button>
   </div>
 
   <div class="gallery" id="gallery"></div>
 </div>
 
 <script>
+const CLOUD_NAME = "dzbpzdqao";
+const AUDIO_PRESET = "audio_upload";
+
 let currentUser = "";
 let allResources = [];
 
-// extract user
+// username extract
 function extractUsername(name) {
   const match = name.match(/BY_(@[A-Za-z0-9_]+)/i);
   return match ? match[1].toLowerCase() : "unknown";
 }
 
 // LOAD DATA
-fetch("/api/cloudinary")
-.then(res => res.json())
-.then(data => {
+async function loadData() {
+  const res = await fetch("/api/cloudinary");
+  const data = await res.json();
+
   allResources = data.resources;
 
   const grouped = {};
 
   data.resources.forEach(file => {
     if (file.resource_type === "image") {
-      const user = extractUsername(file.public_id || "");
+      const user = extractUsername(file.public_id);
       if (!grouped[user]) grouped[user] = [];
       grouped[user].push(file);
     }
@@ -166,7 +149,7 @@ fetch("/api/cloudinary")
     div.className = "project";
 
     div.innerHTML = `
-      <span>Project By ${user}</span>
+      <span>${user}</span>
       <div class="status">
         <span>NOTE ${hasNote ? "✅" : "❌"}</span>
         <span>AUDIO ${hasAudio ? "✅" : "❌"}</span>
@@ -175,25 +158,23 @@ fetch("/api/cloudinary")
     `;
 
     div.onclick = () => openProject(user, grouped[user]);
-
     container.appendChild(div);
   });
-});
+}
+
+loadData();
 
 // OPEN PROJECT
 function openProject(user, files) {
   currentUser = user;
 
-  document.getElementById("overlayTitle").innerText = "Project " + user;
-
+  document.getElementById("overlayTitle").innerText = user;
   document.getElementById("gallery").innerHTML = "";
-  document.getElementById("noteInput").style.display = "block";
-  document.getElementById("savedNote").style.display = "none";
 
   files.forEach(f => {
     const img = document.createElement("img");
     img.src = f.secure_url;
-    document.getElementById("gallery").appendChild(img);
+    gallery.appendChild(img);
   });
 
   loadNote();
@@ -202,24 +183,20 @@ function openProject(user, files) {
   document.getElementById("overlay").classList.add("active");
 }
 
-// LOAD NOTE
+// NOTE
 async function loadNote() {
   const file = allResources.find(f => f.public_id === `note_BY_${currentUser}`);
 
   if (file) {
     const text = await fetch(file.secure_url).then(r => r.text());
-
-    document.getElementById("noteInput").style.display = "none";
-
-    const saved = document.getElementById("savedNote");
-    saved.style.display = "block";
-    saved.innerText = text;
+    noteInput.style.display = "none";
+    savedNote.style.display = "block";
+    savedNote.innerText = text;
   }
 }
 
-// SAVE NOTE
 async function saveNote() {
-  const text = document.getElementById("noteInput").value;
+  const text = noteInput.value;
 
   await fetch("/api/uploadNote", {
     method:"POST",
@@ -227,37 +204,58 @@ async function saveNote() {
     body: JSON.stringify({ user: currentUser, text })
   });
 
-  alert("Note saved ✅");
+  alert("Note saved");
   location.reload();
 }
 
 // AUDIO PREVIEW
-document.getElementById("audioInput").addEventListener("change", e => {
+audioInput.addEventListener("change", e => {
   const file = e.target.files[0];
   if (!file) return;
 
-  const url = URL.createObjectURL(file);
-  const audio = document.getElementById("audioPreview");
-  audio.src = url;
-  audio.style.display = "block";
+  audioPlayer.src = URL.createObjectURL(file);
+  audioPlayer.style.display = "block";
 });
 
-// SAVE AUDIO
-async function saveAudio() {
-  const file = document.getElementById("audioInput").files[0];
-  if (!file) return alert("Pilih audio dulu");
+// 🔥 UPLOAD AUDIO LANGSUNG CLOUDINARY
+async function uploadAudio() {
+  const file = audioInput.files[0];
+  if (!file) return alert("Pilih audio");
 
-  const form = new FormData();
-  form.append("file", file);
-  form.append("user", currentUser);
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", AUDIO_PRESET);
+  formData.append("public_id", `audio_BY_${currentUser}`);
 
-  await fetch("/api/uploadAudio", {
-    method:"POST",
-    body: form
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+    {
+      method:"POST",
+      body: formData
+    }
+  );
+
+  const data = await res.json();
+
+  if (data.error) {
+    alert("Upload gagal");
+    console.log(data);
+    return;
+  }
+
+  alert("Audio uploaded ✅");
+
+  // langsung update UI tanpa reload
+  audioPlayer.src = data.secure_url;
+  audioPlayer.style.display = "block";
+
+  // update memory biar status langsung berubah
+  allResources.push({
+    public_id: `audio_BY_${currentUser}`,
+    secure_url: data.secure_url
   });
 
-  alert("Audio saved ✅");
-  location.reload();
+  loadData();
 }
 
 // LOAD AUDIO
@@ -265,15 +263,14 @@ function loadAudio() {
   const file = allResources.find(f => f.public_id === `audio_BY_${currentUser}`);
 
   if (file) {
-    const audio = document.getElementById("audioPreview");
-    audio.src = file.secure_url;
-    audio.style.display = "block";
+    audioPlayer.src = file.secure_url;
+    audioPlayer.style.display = "block";
   }
 }
 
 // CLOSE
 function closeOverlay() {
-  document.getElementById("overlay").classList.remove("active");
+  overlay.classList.remove("active");
 }
 </script>
 

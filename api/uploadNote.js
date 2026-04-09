@@ -1,38 +1,43 @@
 export default async function handler(req, res) {
-  const cloudName = process.env.dzbpzdqao;
-  const apiKey = process.env.978144777229154;
-  const apiSecret = process.env.kb5h-WryZaiBzR7g3qulAF45iTo;
+  try {
+    const cloudName = process.env.CLOUD_NAME;
+    const apiKey = process.env.API_KEY;
+    const apiSecret = process.env.API_SECRET;
 
-  if (req.method !== "POST") {
-    return res.status(405).end();
-  }
-
-  const { user, text } = req.body;
-
-  const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
-
-  const public_id = `note_BY_${user}`;
-
-  const formData = new FormData();
-  formData.append(
-    "file",
-    `data:text/plain;base64,${Buffer.from(text).toString("base64")}`
-  );
-  formData.append("public_id", public_id);
-  formData.append("resource_type", "raw");
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-      },
-      body: formData,
+    if (req.method !== "POST") {
+      return res.status(405).end();
     }
-  );
 
-  const data = await response.json();
+    const { user, text } = req.body;
 
-  res.status(200).json(data);
+    const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
+
+    const public_id = `note_BY_${user}`;
+
+    const body = new URLSearchParams();
+    body.append("file", `data:text/plain;base64,${Buffer.from(text).toString("base64")}`);
+    body.append("public_id", public_id);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body,
+      }
+    );
+
+    const data = await response.json();
+
+    res.status(200).json(data);
+
+  } catch (err) {
+    res.status(500).json({
+      error: "UPLOAD ERROR",
+      message: err.message,
+    });
+  }
 }

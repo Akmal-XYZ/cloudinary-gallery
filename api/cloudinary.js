@@ -6,25 +6,20 @@ export default async function handler(req, res) {
 
     const auth = Buffer.from(apiKey + ":" + apiSecret).toString("base64");
 
-    // 🔥 ambil image
+    // 🔥 ambil IMAGE
     const imgRes = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/resources/image`,
-      {
-        headers: { Authorization: `Basic ${auth}` },
-      }
+      { headers: { Authorization: `Basic ${auth}` } }
     );
     const imgData = await imgRes.json();
 
-    // 🔥 ambil raw (txt)
+    // 🔥 ambil RAW (txt + audio)
     const rawRes = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/resources/raw`,
-      {
-        headers: { Authorization: `Basic ${auth}` },
-      }
+      { headers: { Authorization: `Basic ${auth}` } }
     );
     const rawData = await rawRes.json();
 
-    // 🔥 gabungin
     const resources = [
       ...(imgData.resources || []),
       ...(rawData.resources || []),
@@ -34,7 +29,8 @@ export default async function handler(req, res) {
 
   } catch (err) {
     res.status(500).json({
-      error: err.message,
+      error: "cloudinary error",
+      message: err.message,
     });
   }
 }

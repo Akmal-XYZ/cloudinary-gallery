@@ -2,41 +2,134 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Gallery</title>
+<title>Project Panel</title>
 
 <style>
-body { margin:0; background:#111; }
+body { margin:0; background:#111; font-family:sans-serif; color:#fff; }
+
+.container { padding:20px; }
+
+.project {
+  background:#1a1a1a;
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:10px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.project:hover { background:#222; }
+
+.overlay {
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.9);
+  display:none;
+  flex-direction:column;
+}
+
+.overlay.active { display:flex; }
+
+.overlay-header {
+  padding:15px;
+  background:#000;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.close-btn {
+  background:red;
+  border:none;
+  color:#fff;
+  padding:5px 10px;
+  border-radius:5px;
+  cursor:pointer;
+}
+
 .gallery {
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
   gap:10px;
   padding:10px;
+  overflow:auto;
 }
+
 img {
   width:100%;
   height:120px;
   object-fit:cover;
   border-radius:10px;
 }
+
 </style>
 </head>
 
 <body>
 
-<div class="gallery" id="gallery"></div>
+<div class="container" id="projects"></div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-header">
+    <span id="overlayTitle"></span>
+    <button class="close-btn" onclick="closeOverlay()">Close</button>
+  </div>
+  <div class="gallery" id="gallery"></div>
+</div>
 
 <script>
+function extractUsername(name) {
+  const match = name.match(/BY_(@[A-Za-z0-9_]+)/i);
+  return match ? match[1].toLowerCase() : "unknown";
+}
+
 fetch("/api/cloudinary")
 .then(res => res.json())
 .then(data => {
-  const gallery = document.getElementById("gallery");
+  const grouped = {};
 
-  data.resources.forEach(img => {
-    const el = document.createElement("img");
-    el.src = img.secure_url;
-    gallery.appendChild(el);
+  data.resources.forEach(file => {
+    const name = file.public_id || "";
+    const user = extractUsername(name);
+
+    if (!grouped[user]) grouped[user] = [];
+    grouped[user].push(file.secure_url);
+  });
+
+  const container = document.getElementById("projects");
+
+  Object.keys(grouped).forEach(user => {
+    const div = document.createElement("div");
+    div.className = "project";
+    div.innerText = "Project By " + user;
+
+    div.onclick = () => openProject(user, grouped[user]);
+
+    container.appendChild(div);
   });
 });
+
+function openProject(user, images) {
+  const overlay = document.getElementById("overlay");
+  const gallery = document.getElementById("gallery");
+  const title = document.getElementById("overlayTitle");
+
+  gallery.innerHTML = "";
+  title.innerText = "Project By " + user;
+
+  images.forEach(src => {
+    const img = document.createElement("img");
+    img.src = src;
+    gallery.appendChild(img);
+  });
+
+  overlay.classList.add("active");
+}
+
+function closeOverlay() {
+  document.getElementById("overlay").classList.remove("active");
+}
 </script>
 
 </body>
